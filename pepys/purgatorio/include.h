@@ -1,15 +1,20 @@
-#include <u.h>
-#include <libc.h>
-#include <ip.h>
+#include "πp.h"
 
-#define Enomem	-1
-#define Ebadrune	-2
-#define Ebadcode	-3
-#define Enotimpl	-4
+typedef struct Fid Fid;
+typedef struct Ram Ram;
 
-void
-error(int err)
-{
-	print("Error: %d\n", err);
-	exit(err);
-}
+struct Fid {
+	int		fid;
+	Ram		*ram;
+	Dirdata	dat;
+	Fid		*next;
+};
+
+struct Ram {
+	u64int	size;
+	u32int	index;
+	u64int	atime; /* mtime is stored in Dirdata */
+	char	*muid;
+	char	*data;
+};
+

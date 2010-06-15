@@ -20,7 +20,9 @@ func opBasic() []byte {
 	basic := new(bytes.Buffer)
 	types := map[string]int{"s":16, "l":32, "v":64}
 	
-	basic.WriteString(`#include "include.h"
+	basic.WriteString(`#include <u.h>
+#include <libc.h>
+#include <ip.h>
 #include "πp.h"
 
 // FIXME: All following methods should have more robust error checks

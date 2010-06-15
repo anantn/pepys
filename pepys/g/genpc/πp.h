@@ -38,13 +38,41 @@ enum {
 	Prmexec		= 0x1
 };
 
-// ACL - respresentation subject to future change
+// ACL & Directory info (respresentations subject to future change)
 typedef struct Perm Perm;
+typedef struct Dirdata Dirdata;
 struct Perm {
-	u32int	perm;
-	char*	uid;
-	char*	gid;
+	u32int	perm;	/* permission bits */
+	char*	uid;	/* owner user */
+	char*	gid;	/* owner group */
 };
+struct Dirdata {
+	u32int	fref;	/* unique id from server */
+	u32int	ftype;	/* file type */
+	u64int	vers;	/* version */
+	Perm	perm;	/* permissions */
+	char	*name;	/* last element of path */
+};
+
+// Error messages
+char Eperm[] 	= "permission denied";
+char Enotdir[] 	= "not a directory";
+char Enoauth[] 	= "ramfs: authentication not required";
+char Enotexist[]= "file does not exist";
+char Einuse[]	= "file in use";
+char Eexist[]	= "file exists";
+char Eisdir[]	= "file is a directory";
+char Enotowner[]= "not owner";
+char Eisopen[]	= "file already open for I/O";
+char Excl[]		= "exclusive use file already open";
+char Ename[]	= "illegal name";
+char Eversion[]	= "unknown protocol version";
+char Enotempty[]= "directory not empty";
+char Ebadfid[]	= "bad fid";
+char Enotimpl[] = "not implemented";
+char Enomem[]	= "out of memory";
+char Ebadrune[] = "bad rune encountered";
+char Ebadcode[] = "bad message code";
 
 typedef struct Data	Data;
 struct Data {
@@ -52,3 +80,9 @@ struct Data {
 	uchar*	dat;
 };
 
+void
+error(char *s)
+{
+	fprint(2, "%s: %s: %r\n", argv0, s);
+	exits(s);
+}
