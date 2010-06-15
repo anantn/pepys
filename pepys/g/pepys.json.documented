@@ -1,0 +1,250 @@
+// πP
+// A lightweight file protocol
+//
+// - Introduction -
+// This document serves as a specification the $ protocol. The protocol is
+// essentially an update to it's precedessor - 9P2000/Styx. Our primary goal
+// was to create a protocol that could serve as an excellent base for building
+// large scale distributed caching file systems.
+//
+// The basics of the protocol remains very simlar to 9P. $ is a binary
+// protocol. A client and server exchange groups of Transmit (T) and Response
+// (R) messages (instead of one at a time as with 9P - saving roundtrips).
+// Every packet sent over the wire is prefixed with it's length in bytes
+// encoded as a 4-byte network-endian integer (not including the 4 bytes used
+// for the length itself).
+//
+// - Types -
+// We define the following basic types used in the protocol:
+[
+{[
+	// A 2-byte network-endian integer
+	"uint16",
+	// A network-endian 4-byte integer
+	"uint32",
+	// A network-endian 8-byte integer
+	"uint64",
+	// An arbritrary string prefixed with it's length as a network-endian
+	// 4-byte integer
+	"string",
+	// An arbitrary set of bytes, prefixed with it's length as a
+	// network-endian 4-byte integer
+	"data"
+]},
+// Every message is prefixed with a single byte, that represents the type of
+// that message (the byte values associated with each message type are
+// documented at a later point). This is followed by a set of arguments
+// that are specific to the message type, and are described later. Each
+// argument, however, can only be one of the basic types described above.
+//
+// The protocol has a number of distinct phases similar to 9P. The
+// phases and corresponding messages are explained in the following sections.
+{
+// - Initialization -
+// The first pair of messages to be exchanged by a client & server is always
+// Tproto and Rproto. One of $'s primary goals is to provide general purpose
+// protocol yet permit it to operate well on concrete, but different,
+// scenarios: local area networks, [A]DSL lines, and wide area.  It should
+// work well in general, however, certain scenarios may require specific
+// requests besides the ones used in most cases.  To provide for expansion, an
+// initial negotiation may take place to select a protocol and agree on
+// supported features.
+
+	// This message represents the client's interest in creating a 
+	// session with the server with a few basic assumptions & requirements.
+	"Tproto": [
+		{"code": "100"},
+		// Denotes the maximum size of any packet exchanged
+		{"Msize": "uint32"},
+		// Denotes the maximum number of messages that can be present in
+		// a single packet
+		{"Nmsgs": "uint16"},
+		// Denotes the client's interest in establishing a connection that
+		// conforms to a particular protocol with a set of extensions
+		// (seperated by the '+' character). For example, if a client wishes
+		// to create a $ connection with leasing and timeoout support, this
+		// string would be "$+lease+timeout". The client is allowed to
+		// specify a set of protocols that are acceptable to it by seperating
+		// them with spaces. For instance, if a client wishes to fall back to
+		// regular 9P2000 in the event that the server doesn't support $, the
+		// options string can be "$+lease+timeout 9P2000".
+		{"Options": "string"}
+	],
+
+	// A server responds with this message to indicate that it accepts the
+	// client's connection request with the arguments as the agreed-upon
+	// connection parameters.
+	"Rproto": [
+		{"code": "101"},
+		// The maximum packet size must be lesser than or equal to the size
+		// requested by the client.
+		{"Msize": "uint32"},
+		// The maximum number of messages per packet must be lesser than or
+		// equal to the size requested by the client.
+		{"Nmsgs": "uint16"},
+		// This string must contain only a SINGLE protocol that the server
+		// agrees to conduct for all subsequent messages, followed by a list
+		// of options that the server implements. For example, if the server
+		// only supports $ with leasing, but not timeouts; the string would
+		// be "$+lease"
+		{"Options": "string"}
+	],
+
+// Both parties now agree to use the protocol and extensions indicated.
+// They may now move into the second phase of communication.
+//
+// - Sessions and Message Groups -
+// A $ session plays the role of the connection over which 9P used to run:
+// all messages arriving on a particular connection must be from the same
+// logical source.  Authentication and session labels are thus associated with
+// a particular session, and not with a particular physical connection.
+//
+// An fid is used (just as in 9P, a 32-bit integer) to identify a particular
+// place in a file tree and to refer to open files. The fid space is managed
+// by the client, so different clients may use the same fid to refer to
+// different files on a particular server. Servers, therefore, must manage
+// fid's on a per-session basis.
+	
+	// This message depicts a client's interest in establishing a $ session.
+	"Tsession": [
+		{"code": "107"},
+		// This parameter describes an identifier the client wishes to
+		// associate with this particular session. This identifier will be
+		// used by the server in all responses to the client.
+		{"Csid": "uint32"},
+		// This parameter describes the user as which the client wishes
+		// wishes to start a session.
+		{"Uname": "string"},
+		// This parameter describes the fid that the client wishes to use
+		// to associate with the authentication/encryption file. This file
+		// is then used in subsequent file operations to execute an 
+		// authentication or key exchange protocol as described later.
+		{"Afid": "uint32"}
+	],
+
+	// This message depicts the server's confirmation of a client's request
+	// to start a $ session. If the server chooses to deny the session request
+	// for any reason it must return an Rerror.
+	"Rsession": [
+		{"code": "108"},
+		// The server chooses an identifier to associate with this particular
+		// $ session. The client will use this number in all subsequent
+		// requests so the server may identify which session they belong to.
+		{"Ssid": "uint32"},
+	],
+	
+// Once a session has been established, all subsequent messages are grouped.
+// A request message group looks like this:
+// 		Tgroup Ssid K{ tag n T1 T2 ... Tn C }
+// and a message response group looks like:
+//		Rgroup Csid K{ tag n R1 R2 ... Rn C }
+// where K{X} denotes encryption of X with key K. C is a checksum that is
+// used in encrypted messages to verify the integrity of a packet.
+// In unencrypted messages, the checksum is not used.
+// 
+// Most sessions (but not all) will be authenticated or encrypted. If
+// either authentication or encryption is required, the required
+// authentication or key exchange must be performed immediately after the
+// session has been established. The actual protocol used for either are
+// free to be chosen by the server, and describing one is not within
+// the scope of the $ specification. The client uses the fid it chose in 
+// the Tsession message to send Twrite and Tread messages (described in
+// detail later) to execute the chosen protocol
+
+	// This message allows for clients & servers to execute an authentication
+	// or key exchange protocol. 
+	"Tauth": [
+		{"code": "102"},
+		// The client chooses an fid to associate with 
+		{"Afid": "uint32"},
+		{"Uname": "string"},
+		{"Aname": "string"}
+	],
+
+	"Rauth": [
+		{"code": "103"}
+	],
+	
+	"Rerror": [
+		{"code": "104"},
+		{"Ename": "string"}
+	],
+
+	"Tflush": [
+		{"code": "105"},
+		{"Oldtag": "uint16"}
+	],
+
+	"Rflush": [
+		{"code": "106"}
+	],
+
+	"Topen": [
+		{"code": "109"},
+		{"Path": "string"},
+		{"Fid": "uint32"},
+		{"Mode": "string"}
+	],
+
+	"Ropen": [
+		{"code": "110"},
+		{"Iounit": "uint32"}
+	],
+
+	"Tcreate": [
+		{"code": "111"},
+		{"Fid": "uint32"},
+		{"Name": "string"},
+		{"Perm": "uint32"},
+		{"Mode": "string"}
+	],
+
+	"Rcreate": [
+		{"code": "112"},
+		{"Iounit": "uint32"}
+	],
+
+	"Tread": [
+		{"code": "113"},
+		{"Fid": "uint32"},
+		{"Offset": "uint64"},
+		{"Count": "uint32"},
+		{"Attrs": "string"}
+	],
+
+	"Rread": [
+		{"code": "114"},
+		{"Dat": "data"}
+	],
+
+	"Twrite": [
+		{"code": "115"},
+		{"Fid": "uint32"},
+		{"Offset": "uint64"},
+		{"Dat": "data"}
+	],
+	
+	"Rwrite": [
+		{"code": "116"},
+		{"Count": "uint32"}
+	],
+
+	"Tclose": [
+		{"code": "117"},
+		{"Fid": "uint32"}
+	],
+
+	"Rclose": [
+		{"code": "118"}
+	],
+
+	"Tclunk": [
+		{"code": "119"},
+		{"Fid": "uint32"}
+	],
+
+	"Rclunk": [
+		{"code": "120"}
+	]
+}
+]

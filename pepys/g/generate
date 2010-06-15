@@ -1,0 +1,33 @@
+#!/bin/bash
+. $GOROOT/src/Make.$GOARCH
+
+# compile all languages first
+$GC gengo/gengo.go
+gopack grc gengo.a gengo.$O
+$GC genpc/genpc.go
+gopack grc genpc.a genpc.$O
+
+case $1 in
+	go)
+		sed 's/@LANG@/gengo/g' main.go > realmain.go
+		$GC realmain.go
+		$LD -o main realmain.$O
+		./main pepys.json
+		mv pepys.go ../
+		mv server.go ../server/
+		;;
+	pc)
+		sed 's/@LANG@/genpc/g' main.go > realmain.go
+		$GC realmain.go
+		$LD -o main realmain.$O
+		./main pepys.json
+		mv πp.h ../purgatorio/
+		mv πp.c ../purgatorio/
+		;;
+	*)
+		echo "Invalid language $1 specified!"
+		;;
+esac
+
+# remove generated lang files
+rm -f main realmain.go realmain.$O gengo.a gengo.$O genpc.a genpc.$O

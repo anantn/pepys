@@ -1,0 +1,125 @@
+{
+	"Tproto": [
+		{"code": "100"},
+		{"Msize": "u32int"},
+		{"Nmsgs": "u16int"},
+		{"Options": "string"}
+	],
+
+	"Rproto": [
+		{"code": "101"},
+		{"Msize": "u32int"},
+		{"Nmsgs": "u16int"},
+		{"Options": "string"}
+	],
+
+	"Tsession": [
+		{"code": "102"},
+		{"Csid": "u32int"},
+		{"Uname": "string"},
+		{"Afid": "u32int"}
+	],
+	
+	"Rsession": [
+		{"code": "103"},
+		{"Ssid": "u32int"}
+	],
+	
+	"Tattach": [
+		{"code": "104"},
+		{"Fid": "u32int"},
+		{"Afid": "u32int"},
+		{"Uname": "string"},
+		{"Aname": "string"}
+	],
+
+	"Rattach": [
+		{"code": "105"}
+	],
+	
+	"Rerror": [
+		{"code": "107"},
+		{"Ename": "string"}
+	],
+
+	"Tflush": [
+		{"code": "108"}
+	],
+
+	"Rflush": [
+		{"code": "109"}
+	],
+
+	"Topen": [
+		{"code": "110"},
+		{"Fid": "u32int"},
+		{"Nfid": "u32int"},
+		{"Path": "string"},
+		{"Mode": "string"}
+	],
+
+	"Ropen": [
+		{"code": "111"},
+		{"Iounit": "u32int"},
+		{"Ftype": "u32int"},
+		{"Version": "u64int"}
+	],
+
+	"Tcreate": [
+		{"code": "112"},
+		{"Fid": "u32int"},
+		{"Name": "string"},
+		{"Perm": "u32int"},
+		{"Mode": "string"}
+	],
+
+	"Rcreate": [
+		{"code": "113"},
+		{"Iounit": "u32int"},
+		{"Version": "u64int"}
+	],
+
+	"Tread": [
+		{"code": "114"},
+		{"Fid": "u32int"},
+		{"Offset": "u64int"},
+		{"Count": "u32int"},
+		{"Attrs": "string"}
+	],
+
+	"Rread": [
+		{"code": "115"},
+		{"Dat": "data"}
+	],
+
+	"Twrite": [
+		{"code": "116"},
+		{"Fid": "u32int"},
+		{"Offset": "u64int"},
+		{"Dat": "data"}
+	],
+	
+	"Rwrite": [
+		{"code": "117"},
+		{"Count": "u32int"}
+	],
+
+	"Tremove": [
+		{"code": "118"},
+		{"Fid": "u32int"}
+	],
+
+	"Rremove": [
+		{"code": "119"}
+	],
+
+	"Tclunk": [
+		{"code": "120"},
+		{"Fid": "u32int"},
+		{"Version": "u64int"}
+	],
+
+	"Rclunk": [
+		{"code": "121"}
+	]
+}
